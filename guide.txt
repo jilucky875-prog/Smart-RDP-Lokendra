@@ -1,0 +1,17 @@
+Smart-RDP-Lokendra > /settings/secrets/actions >Repository secrets> N8N_WEBHOOK > url
+
+github main Personal access tokens (classic),https://github.com/settings/tokens> Generate new token > Generate new token (classic) >
+Note (me dalo: n8n RDP
+Expiration: NO Expiration
+Select scopes : repo, workflow
+
+repo :
+Full control of private repositories
+repo:statusAccess commit status
+repo_deploymentAccess deployment status
+public_repoAccess public repositories
+repo:inviteAccess repository invitations
+security_eventsRead and write security events
+
+workflow :
+Update GitHub Action workflows
