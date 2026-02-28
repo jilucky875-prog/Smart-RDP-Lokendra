@@ -1,4 +1,4 @@
-name: Ultimate RDP (Real Dark Mode Fix)
+name: Ultimate RDP (Real Dark Mode Fix & RAM Optimized)
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   # ==================================================
-  # 🐧 LINUX (Real Dark Mode Logic Added)
+  # 🐧 LINUX (Dark Mode + RAM Limiter Added)
   # ==================================================
   linux-lite:
     if: contains(github.event.inputs.crd_code, 'DISPLAY=')
@@ -22,10 +22,14 @@ jobs:
           -d '{"message": "🐧 *Linux Starting...*\nMode: Real Dark Theme\nWait: 45s"}' \
           ${{ secrets.N8N_WEBHOOK }} || true
 
+      - name: 🧹 Background RAM Optimizer
+        run: |
+          # Yeh background me har 10 minute me RAM cache clear karega
+          nohup bash -c "while true; do sudo sync; echo 3 | sudo tee /proc/sys/vm/drop_caches; sleep 600; done" > /dev/null 2>&1 &
+
       - name: ⚙️ Install Essentials & Dark Theme
         run: |
           sudo apt-get update
-          # Added 'arc-theme'
           sudo apt-get install -y --no-install-recommends xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils pulseaudio pavucontrol xfce4-pulseaudio-plugin arc-theme
           wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y
@@ -34,11 +38,7 @@ jobs:
 
       - name: 🌑 Force Dark Mode (Autostart)
         run: |
-          # 1. Create Autostart Directory
           mkdir -p ~/.config/autostart
-          
-          # 2. Create a Launcher that runs IMMEDIATELY on login
-          # This forces XFCE settings to switch to Arc-Dark
           cat <<EOF > ~/.config/autostart/dark-theme.desktop
           [Desktop Entry]
           Type=Application
@@ -52,12 +52,9 @@ jobs:
       - name: 🎧 Config Audio
         run: |
           sudo usermod -a -G audio,pulse,pulse-access $USER
-          
-          # Standard Audio Setup
           echo "pulseaudio --start --exit-idle-time=-1" > ~/.chrome-remote-desktop-session
           echo "pactl load-module module-null-sink sink_name=DummyOutput sink_properties=device.description='Virtual_Output'" >> ~/.chrome-remote-desktop-session
           echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" >> ~/.chrome-remote-desktop-session
-          
           sudo apt-get install -y gnome-screensaver
           gsettings set org.gnome.desktop.lockdown disable-lock-screen 'true'
 
@@ -76,7 +73,7 @@ jobs:
         run: timeout 21000s bash -c "while true; do sleep 300; done" || true
 
   # ==================================================
-  # 🪟 WINDOWS (Already Perfect)
+  # 🪟 WINDOWS (RAM Optimized)
   # ==================================================
   windows-lite:
     if: ${{ !contains(github.event.inputs.crd_code, 'DISPLAY=') }}
@@ -90,6 +87,19 @@ jobs:
           curl -X POST -H "Content-Type: application/json" \
           -d '{"message": "🪟 *Windows Starting...*\nWait: 2 mins"}' \
           ${{ secrets.N8N_WEBHOOK }} || true
+
+      - name: 🧹 Background RAM Optimizer (Windows)
+        shell: powershell
+        run: |
+          # Har 10 minute me memory clear karne ka background job
+          $Action = {
+            while($true) {
+              [GC]::Collect()
+              [GC]::WaitForPendingFinalizers()
+              Start-Sleep -Seconds 600
+            }
+          }
+          Start-Job -ScriptBlock $Action
 
       - name: ⚙️ Setup Environment
         run: |
@@ -111,34 +121,22 @@ jobs:
           echo      LOKENDRA RDP: ULTIMATE DARK MODE
           echo ==================================================
           echo.
-
           echo [1/5] Applying "Windows (dark)" Theme and Registry...
-          
-          :: Apply Official Dark Theme
           powershell -Command "Start-Process 'C:\Windows\Resources\Themes\dark.theme'; Start-Sleep -Seconds 3; Stop-Process -Name SystemSettings -Force -ErrorAction SilentlyContinue"
-
-          :: Force Registry Backup
           powershell -Command "New-ItemProperty -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize -Name AppsUseLightTheme -Value 0 -Type Dword -Force; New-ItemProperty -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize -Name SystemUsesLightTheme -Value 0 -Type Dword -Force"
-
-          :: Force Edge/Search Dark
           reg add "HKCU\Software\Policies\Microsoft\Edge" /v "PreferredColorScheme" /t REG_DWORD /d 2 /f >nul 2>&1
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Search" /v "SearchboxBackgroundMode" /t REG_DWORD /d 1 /f >nul 2>&1
-
           echo [2/5] Setting Timezone (India) and Format...
           powershell -Command "Set-TimeZone -Id 'India Standard Time'; Set-ItemProperty -Path 'HKCU:\Control Panel\International' -Name sShortTime -Value 'h:mm tt'"
-
           echo [3/5] Stopping Junk Services (Speed Boost)...
           powershell -Command "Stop-Service 'SysMain', 'wuauserv' -Force -ErrorAction SilentlyContinue"
-
           echo [4/5] Installing Audio Driver (C:\VB)...
           powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $url = 'https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack43.zip'; $dest = 'C:\VB.zip'; Invoke-WebRequest -Uri $url -OutFile $dest; Expand-Archive $dest -Dest 'C:\VB' -Force; Start-Process -FilePath 'C:\VB\VBCABLE_Setup_x64.exe' -ArgumentList '-i -h' -Verb RunAs -Wait"
-
           echo [5/5] Refreshing Explorer...
           powershell -Command "Get-Process explorer | Stop-Process"
-
           echo.
           echo ==================================================
-          echo           SETUP COMPLETE! READ CAREFULLY:
+          echo            SETUP COMPLETE! READ CAREFULLY:
           echo ==================================================
           echo.
           echo 1. Connection abhi DISCONNECT hoga (Normal hai).
@@ -148,8 +146,6 @@ jobs:
           echo      >>> FULL DARK THEME + AUDIO READY <<<
           echo ==================================================
           timeout /t 8
-
-          :: Restart Services (This kills the connection)
           powershell -Command "Stop-Service Audiosrv -Force; Start-Service Audiosrv; Stop-Service chromoting -Force; Start-Service chromoting"
           '@
           Set-Content -Path $ScriptPath -Value $Content
